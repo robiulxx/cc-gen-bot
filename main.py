@@ -380,7 +380,7 @@ async def lookup_bin(bin_number):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        await update.message.reply_text("Welcome to the Card Generator Bot!\n\nUse /gen or .gen followed by BIN to generate cards. or press ☞ /help")
+        await update.message.reply_text("Welcome to the Card Generator Bot!\n\nUse /gen or .gen followed by BIN to generate cards.")
     except Forbidden:
         print(f"User {update.effective_user.id} blocked the bot.")
 
@@ -459,7 +459,7 @@ async def process_gen_command(update: Update, user_input: str):
     except Exception as e:
         print(f"Error: {e}")
         try:
-            await update.message.reply_text("An error occurred while generating.")
+            await update.message.reply_text("𝐔𝐬𝐞 𝐭𝐡𝐞 𝐟𝐨𝐥𝐥𝐨𝐰𝐢𝐧𝐠 𝐫𝐮𝐥𝐞𝐬 𝐭𝐨 𝐠𝐞𝐧𝐞𝐫𝐚𝐭𝐞 𝐜𝐫𝐞𝐝𝐢𝐭 𝐜𝐚𝐫𝐝 👇\n\n𝟏. /𝐠𝐞𝐧 𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗𝟏𝟐𝐱𝐱𝐱\n\n𝟐. /𝐠𝐞𝐧 𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗𝟏𝟐𝐱𝐱𝐱|𝐦𝐨𝐧𝐭𝐡|𝐲𝐞𝐚𝐫\n\n𝐅𝐨𝐫 𝐄𝐱𝐚𝐦𝐩𝐥𝐞: 𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗𝟏𝟐𝐱𝐱𝐱|𝟎𝟖|𝟐𝟓")
         except Forbidden:
             print(f"User {update.effective_user.id} blocked the bot.")
 
