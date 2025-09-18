@@ -1,24 +1,18 @@
 import random
 import re
 import aiohttp
-import asyncio
 from flask import Flask, request
-from threading import Thread
 from telegram import Update, Bot
 from telegram.error import Forbidden
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters, TypeHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
 def clean_data(data):
     cleaned_data = re.sub(r'[^a-zA-Z0-9\s]', '', data)
     return cleaned_data
 
-# Web server to keep alive
 app = Flask(__name__)
 
-# Global variable to store the application instance
-application = None
-
-# Country Flags Dictionary
+# Country Flags Dictionary (সংক্ষিপ্ত সংস্করণ, প্রয়োজন অনুযায়ী যোগ করুন)
 COUNTRY_FLAGS = {
     "ARUBA": "🇦🇼",
     "AFGHANISTAN": "🇦🇫",
@@ -344,20 +338,12 @@ async def lookup_bin(bin_number):
                 else:
                     return {"error": f"API error: {response.status}"}
     except Exception as e:
-        print(f"BIN Lookup Error: {e}")
         return {"error": str(e)}
-        
+
 # --- Telegram Handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        await update.message.reply_text(
-            "Welcome to the Card Generator Bot!\n\n"
-            "Use /gen or .gen followed by BIN to generate cards.\n\n"
-            "𝐔𝐬𝐞 𝐭𝐡𝐞 𝐟𝐨𝐥𝐥𝐨𝐰𝐢𝐧𝐠 𝐫𝐮𝐥𝐞𝐬 𝐭𝐨 𝐠𝐞𝐧𝐞𝐫𝐚𝐭𝐞 𝐜𝐫𝐞𝐝𝐢𝐭 𝐜𝐚𝐫𝐝 👇\n\n"
-            "𝟏. /𝐠𝐞𝐧 𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗𝟏𝟐𝐱𝐱𝐱\n\n"
-            "𝟐. /𝐠𝐞𝐧 𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗𝟏𝟐𝐱𝐱𝐱|𝐦𝐨𝐧𝐭𝐡|𝐲𝐞𝐚𝐫\n\n"
-            "𝐅𝐨𝐫 𝐄𝐱𝐚𝐦𝐩𝐥𝐞: /𝐠𝐞𝐧 𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗𝟏𝟐𝐱𝐩𝐱|𝟎𝟖|𝟐𝟓"
-        )
+        await update.message.reply_text("Welcome to the Card Generator Bot!\n\nUse /gen or .gen followed by BIN to generate cards.")
     except Forbidden:
         print(f"User {update.effective_user.id} blocked the bot.")
 
@@ -366,7 +352,7 @@ async def process_gen_command(update: Update, user_input: str):
         user_input = user_input.replace('/', '|')
         input_parts = user_input.split(' ')
         card_info = input_parts[0].strip()
-        quantity_str = input_parts[1].strip() if len(input_parts) > 1 else "1"
+        quantity_str = input_parts[1].strip() if len(input_parts) > 1 else "10"
 
         parts = card_info.split('|')
         bin_number = parts[0].strip() if len(parts) > 0 else ""
@@ -381,13 +367,11 @@ async def process_gen_command(update: Update, user_input: str):
         try:
             quantity = int(quantity_str)
             if quantity <= 0 or quantity > 100:
-                await update.message.reply_text("Max quantity is 100.")
-                return
+                raise ValueError()
         except ValueError:
-            await update.message.reply_text("Please enter a valid number.")
+            await update.message.reply_text("Max quantity is 100.")
             return
 
-        # Lookup BIN info
         bin_info = await lookup_bin(bin_number)
         if "error" in bin_info:
             bin_info = {
@@ -399,7 +383,6 @@ async def process_gen_command(update: Update, user_input: str):
                 "flag": "🏳️"
             }
 
-        # Escape for MarkdownV2
         issuer = escape_markdown_v2(bin_info.get('bank'))
         card_type = escape_markdown_v2(bin_info.get('card_type'))
         network = escape_markdown_v2(bin_info.get('network'))
@@ -407,7 +390,6 @@ async def process_gen_command(update: Update, user_input: str):
         country = escape_markdown_v2(bin_info.get('country'))
         flag = bin_info.get('flag', '🏳️')
 
-        # Generate cards
         ccs = []
         for _ in range(quantity):
             card_number = generate_credit_card(bin_number)
@@ -417,7 +399,6 @@ async def process_gen_command(update: Update, user_input: str):
 
         ccs_text = '\n'.join([f"`{cc}`" for cc in ccs])
 
-        # Build response
         response = (
             f"*𝐁𝐈𝐍* ⇾ {escape_markdown_v2(bin_number[:6])}\n"
             f"*𝐀𝐌𝐎𝐔𝐍𝐓* ⇾ {quantity}\n"
@@ -448,73 +429,41 @@ async def gen_with_dot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_input = update.message.text[4:].strip()
     await process_gen_command(update, user_input)
 
-# Webhook route for Flask
+# Webhook endpoint for Render.com
 @app.route('/webhook', methods=['POST'])
 async def webhook():
-    if request.method == "POST":
-        update = Update.de_json(request.get_json(), application.bot)
+    if request.method == 'POST':
+        update = Update.de_json(request.get_json(), bot)
         await application.process_update(update)
-    return "OK"
+        return 'OK'
 
-# Health check route
-@app.route('/')
-def home():
-    return "Bot is online!"
+# Initialize bot and application
+bot = Bot(token="YOUR_BOT_TOKEN")
+application = ApplicationBuilder().token("YOUR_BOT_TOKEN").build()
 
-# Async background pinger for Render
-async def ping_self():
-    while True:
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get("https://telegram-card-generator-bo.onrender.com", timeout=10) as response:
-                    if response.status == 200:
-                        print("Ping successful - App is awake")
-        except Exception as e:
-            print(f"Ping error: {e}")
-        await asyncio.sleep(300)  # Ping every 5 minutes
+# Add handlers
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("gen", gen))
+application.add_handler(MessageHandler(filters.Regex(r"^\.gen\s"), gen_with_dot))
 
-# Start ping loop in background
-def start_ping_loop():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(ping_self())
-
-# --- Main ---
-async def main():
-    global application
-    
-    # Replace "BOT_TOKEN" with your actual bot token
-    application = (
-        ApplicationBuilder()
-        .token("BOT_TOKEN")
-        .build()
-    )
-
-    # Add handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("gen", gen))
-    application.add_handler(MessageHandler(filters.Regex(r"^\.gen\s"), gen_with_dot))
-
-    # Set webhook
-    webhook_url = "https://telegram-card-generator-bo.onrender.com/webhook"
-    await application.bot.set_webhook(webhook_url)
-    print(f"Webhook set to: {webhook_url}")
-
-    # Start ping thread for Render
-    ping_thread = Thread(target=start_ping_loop)
-    ping_thread.daemon = True
-    ping_thread.start()
-
-    print("Bot is running in webhook mode...")
-
-if __name__ == "__main__":
-    # Run the Flask app
+if __name__ == '__main__':
+    # Set webhook on startup
+    import os
     from threading import Thread
-    import threading
     
-    # Run the main function in a separate thread
-    thread = Thread(target=asyncio.run, args=(main(),))
-    thread.start()
+    # Render.com provides PORT environment variable
+    port = int(os.environ.get('PORT', 5000))
+    webhook_url = f"https://your-app-name.onrender.com/webhook"  # আপনার app name দিয়ে পরিবর্তন করুন
     
-    # Run Flask app
-    app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
+    # Set webhook in a separate thread to avoid blocking
+    def set_webhook():
+        try:
+            bot.set_webhook(webhook_url)
+            print(f"Webhook set to: {webhook_url}")
+        except Exception as e:
+            print(f"Error setting webhook: {e}")
+    
+    Thread(target=set_webhook).start()
+    
+    # Start Flask server
+    app.run(host='0.0.0.0', port=port)
