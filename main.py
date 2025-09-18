@@ -34,7 +34,7 @@ def ping_self():
     def loop():
         while True:
             try:
-                httpx.get("https://telegram-card-generator-bo.onrender.com", timeout=5)
+                httpx.get("https://cc-gen-bot-8nmx.onrender.com", timeout=5)
             except:
                 pass  # silently ignore errors
             time.sleep(5)
